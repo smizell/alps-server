@@ -14,30 +14,41 @@ var appendUrl = process.argv[2] || '';
 // Directory of ALPs profiles
 var profilesDir = path.resolve(__dirname, '..', 'profiles');
 
-// Process files
-async.waterfall([
-  readProfilesDir,
-  transformFiles
-], function (errors) {
-  if (errors) {
-    console.log(errors);
-  }
-});
+// Directories we want to transform
+var directories = [
+  path.resolve(profilesDir, 'schema.org')
+]
 
 // ----------------------------------------------------------------------------
 
-function readProfilesDir(callback) {
-  fs.readdir(profilesDir, callback);
+// Now that we have everything, we can process each directory
+async.each(directories, processDirectory, outputError);
+
+// ----------------------------------------------------------------------------
+
+function processDirectory(directory, callback) {
+  async.waterfall([
+    readProfilesDir(directory),
+    transformFiles(directory)
+  ], callback);
 }
 
-function transformFiles(files, callback) {
-  async.each(files, function(filename, eachCallback) {
-    var fileHandler = transformFile(filename, eachCallback);
-    fs.readFile(path.resolve(profilesDir, filename), 'utf8', fileHandler);
-  }, callback);
+function readProfilesDir(directory) {
+  return function(callback) {
+    fs.readdir(directory, callback);
+  }
 }
 
-function transformFile(filename, callback) {
+function transformFiles(directory) {
+  return function (files, callback) {
+    async.each(files, function(filename, eachCallback) {
+      var fileHandler = transformFile(directory, filename, eachCallback);
+      fs.readFile(path.resolve(directory, filename), 'utf8', fileHandler);
+    }, callback);
+  }
+}
+
+function transformFile(directory, filename, callback) {
   return function(error, originalXml) {
     if (error) {
       return callback(error);
@@ -45,21 +56,21 @@ function transformFile(filename, callback) {
 
     async.waterfall([
       function(next) {
-        transformXml(filename, originalXml, next);
+        transformXml(directory, filename, originalXml, next);
       },
       function(newXml, next) {
-        transformRefract(filename, newXml, next);
+        transformRefract(directory, filename, newXml, next);
       },
       function(refract, next) {
-        transformHtml(filename, refract, next);
+        transformHtml(directory, filename, refract, next);
       }
     ], callback)
   }
 }
 
-function transformXml(originalFilename, originalXml, callback) {
+function transformXml(directory, originalFilename, originalXml, callback) {
   var newXml = originalXml.replace(/http:\/\/alps.io/g, appendUrl);
-  var newFilename = path.resolve(profilesDir, originalFilename.replace('.xml', '-final.xml'));
+  var newFilename = path.resolve(directory, originalFilename.replace('.xml', '-final.xml'));
 
   fs.writeFile(newFilename, newXml, function(error) {
     if (error) {
@@ -70,9 +81,9 @@ function transformXml(originalFilename, originalXml, callback) {
   });
 }
 
-function transformRefract(originalFilename, newXml, callback) {
+function transformRefract(directory, originalFilename, newXml, callback) {
   var refract = alpsFromXml(newXml);
-  var newFilename = path.resolve(profilesDir, originalFilename.replace('.xml', '-refract-final.json'));
+  var newFilename = path.resolve(directory, originalFilename.replace('.xml', '-refract-final.json'));
   var refractJson = JSON.stringify(refract.toRefract(), null, 2);
 
   fs.writeFile(newFilename, refractJson, function(error) {
@@ -84,15 +95,21 @@ function transformRefract(originalFilename, newXml, callback) {
   });
 }
 
-function transformHtml(originalFilename, refract, callback) {
+function transformHtml(directory, originalFilename, refract, callback) {
   var html = alpsToHtml(refract);
-  var newFilename = path.resolve(profilesDir, originalFilename.replace('.xml', '-final.html'));
+  var newFilename = path.resolve(directory, originalFilename.replace('.xml', '-final.html'));
 
   fs.writeFile(newFilename, html, function(error) {
     if (error) {
       return callback(error);
     }
-    
+
     callback(null, html);
   });
+}
+
+function outputError(error) {
+  if (error) {
+    console.log(error);
+  }
 }
