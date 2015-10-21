@@ -1,1 +1,61 @@
 #!/usr/bin/env node
+
+var alpsFromXml = require('minim-alps').alpsFromXml;
+var alpsToHtml = require('minim-alps').alpsToHtml;
+var async = require('async');
+var fs = require('fs');
+var path = require('path');
+
+// The URL appended to all HREFs in profiles
+// This replaces http://alps.io
+// TODO: Pull from configuration file
+var appendUrl = process.argv[2] || '';
+
+// Directory of ALPs profiles
+var profilesDir = path.resolve(__dirname, '..', 'profiles');
+
+// Process files
+async.waterfall([
+  readProfilesDir,
+  transformFiles
+], errorHandler);
+
+// ----------------------------------------------------------------------------
+
+function readProfilesDir(callback) {
+  fs.readdir(profilesDir, callback);
+}
+
+function transformFiles(files, callback) {
+  async.each(files, function(filename, eachCallback) {
+    var fileHandler = transformFile(filename, eachCallback);
+    fs.readFile(path.resolve(profilesDir, filename), 'utf8', fileHandler);
+  }, callback);
+}
+
+function transformFile(filename, callback) {
+  return function(error, originalXml) {
+    errorHandler(error);
+
+    // TODO: Steps left to complete this:
+    // Convert to Refract and save
+    // Save as HTML
+    transformXml(filename, originalXml, callback);
+  }
+}
+
+function transformXml(originalFilename, originalXml, callback) {
+  var newXml = originalXml.replace(/http:\/\/alps.io/g, appendUrl);
+  var newFilename = path.resolve(profilesDir, originalFilename.replace('.xml', '-final.xml'));
+
+  fs.writeFile(newFilename, newXml, function(error) {
+    errorHandler(error);
+    callback(null, newXml);
+  });
+}
+
+function errorHandler(errors) {
+  if (errors) {
+    console.log(errors);
+  }
+}
