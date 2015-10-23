@@ -1,0 +1,9 @@
+extends ./layout.jade
+
+block content
+  h1= source
+  
+  ul
+    each profile, name in profiles
+      li
+        a(href=profile)= name

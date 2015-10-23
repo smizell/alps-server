@@ -12,6 +12,9 @@
   "dependencies": {
     "async": "^1.4.2",
     "express": "^4.13.3",
-    "minim-alps": "^0.2.3"
+    "jade": "^1.11.0",
+    "jstransformer-marked": "^1.0.1",
+    "lodash": "^3.10.1",
+    "minim-alps": "^0.2.5"
   }
 }

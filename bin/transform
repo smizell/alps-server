@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+var _ = require('lodash');
 var alpsFromXml = require('minim-alps').alpsFromXml;
 var alpsToHtml = require('minim-alps').alpsToHtml;
 var async = require('async');
@@ -29,6 +30,7 @@ async.each(directories, processDirectory, outputError);
 function processDirectory(directory, callback) {
   async.waterfall([
     readProfilesDir(directory),
+    filterFiles(directory),
     transformFiles(directory)
   ], callback);
 }
@@ -36,6 +38,16 @@ function processDirectory(directory, callback) {
 function readProfilesDir(directory) {
   return function(callback) {
     fs.readdir(directory, callback);
+  }
+}
+
+// We don't want any files that have been generated previously
+function filterFiles(directory) {
+  return function(files, callback) {
+    var newFiles = files.filter(function(file) {
+      return !_.contains(file, '-final.');
+    })
+    callback(null, newFiles);
   }
 }
 
